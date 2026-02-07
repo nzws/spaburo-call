@@ -1,0 +1,10 @@
+services:
+  spaburo-call:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spaburo-call
+    env_file:
+      - .env
+    restart: unless-stopped
+    network_mode: host
