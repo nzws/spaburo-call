@@ -165,6 +165,19 @@ class MyAccount(pj.Account):
         self.logger = logging.getLogger("MyAccount")
         self.calls = []  # Callオブジェクトを保持するリスト
 
+    def onRegState(self, prm: pj.OnRegStateParam) -> None:
+        """SIP登録状態変化時のコールバック"""
+        info = self.getInfo()
+        if info.regIsActive and 200 <= prm.code < 300:
+            self.logger.info(
+                f"SIP登録に成功しました: code={prm.code} reason={prm.reason} "
+                f"expiration={prm.expiration}秒"
+            )
+        else:
+            self.logger.error(
+                f"SIP登録に失敗しました: code={prm.code} reason={prm.reason}"
+            )
+
     def onIncomingCall(self, prm: pj.OnIncomingCallParam) -> None:
         """着信時のコールバック"""
         # P-Asserted-Identityを取得
@@ -229,9 +242,12 @@ class SipBot:
 
             # Endpoint設定
             ep_cfg = pj.EpConfig()
-            # ログレベルを設定（3=INFO）
-            ep_cfg.logConfig.level = 3
-            ep_cfg.logConfig.consoleLevel = 3
+            # PJSIPのログレベルをPythonのログレベルに連動させる
+            # （DEBUG時は5=詳細トレース、それ以外は3=INFO相当）
+            debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
+            pj_log_level = 5 if debug_enabled else 3
+            ep_cfg.logConfig.level = pj_log_level
+            ep_cfg.logConfig.consoleLevel = pj_log_level
             self.ep.libInit(ep_cfg)
 
             # トランスポート設定（UDP）
@@ -274,7 +290,8 @@ class SipBot:
         self.account.create(acc_cfg)
 
         self.logger.info(
-            f"SIPアカウントを登録しました: {acc_cfg.idUri} -> {acc_cfg.regConfig.registrarUri}"
+            f"SIP登録要求を送信しました（結果はonRegStateで通知）: "
+            f"{acc_cfg.idUri} -> {acc_cfg.regConfig.registrarUri}"
         )
         self.logger.info(
             f"認証情報: ユーザーID={self.sip_user}, 認証ID={self.sip_auth_user}"
