@@ -272,7 +272,8 @@ class SipBot:
         acc_cfg = pj.AccountConfig()
         acc_cfg.idUri = f"sip:{self.sip_user}@{self.sip_domain}"
         acc_cfg.regConfig.registrarUri = f"sip:{self.sip_domain}"
-        acc_cfg.regConfig.timeoutSec = 3600  # 登録有効期限を3600秒（1時間）に設定
+        # NAT越しのため登録有効期限を短めにし、NATテーブルの失効による着信不達を防ぐ
+        acc_cfg.regConfig.timeoutSec = 300
 
         # 認証設定
         cred = pj.AuthCredInfo()
