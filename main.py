@@ -10,6 +10,7 @@ from typing import Optional
 from call_session import SessionConfig
 from sip_bot import SipBot
 from utils.recording import validate_prompt_wav
+from utils.transcribe import DEFAULT_TRANSCRIPTION_URL
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
@@ -73,7 +74,8 @@ async def amain() -> None:
         sip_password=os.getenv("SIP_PASSWORD") or "",
         webhook_url=os.getenv("WEBHOOK_URL") or None,
         session_config=load_session_config(),
-        groq_api_key=os.getenv("GROQ_API_KEY") or None,
+        transcribe_api_key=os.getenv("OPENAI_API_KEY") or None,
+        transcribe_api_url=os.getenv("TRANSCRIBE_API_URL") or DEFAULT_TRANSCRIPTION_URL,
         transcribe_model=os.getenv("TRANSCRIBE_MODEL") or "whisper-large-v3-turbo",
         mqtt_broker=os.getenv("MQTT_BROKER") or None,
         mqtt_port=int(os.getenv("MQTT_PORT") or "1883"),

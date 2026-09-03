@@ -1,6 +1,6 @@
 import httpx
 
-from utils.transcribe import GROQ_TRANSCRIPTION_URL, transcribe
+from utils.transcribe import DEFAULT_TRANSCRIPTION_URL, transcribe
 
 MODEL = "whisper-large-v3-turbo"
 
@@ -15,7 +15,7 @@ async def test_no_api_key_skips(tmp_path):
     async with httpx.AsyncClient() as client:
         text, err = await transcribe(client, None, MODEL, make_wav(tmp_path))
     assert text is None
-    assert err == "GROQ_API_KEY not set"
+    assert err == "OPENAI_API_KEY not set"
 
 
 async def test_success(tmp_path):
@@ -31,7 +31,27 @@ async def test_success(tmp_path):
         text, err = await transcribe(client, "gsk_test", MODEL, make_wav(tmp_path))
     assert (text, err) == ("こんにちは", None)
     assert seen["auth"] == "Bearer gsk_test"
-    assert seen["url"] == GROQ_TRANSCRIPTION_URL
+    assert seen["url"] == DEFAULT_TRANSCRIPTION_URL
+
+
+async def test_custom_url_is_used(tmp_path):
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json={"text": "こんにちは"})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        text, err = await transcribe(
+            client,
+            "sk_test",
+            MODEL,
+            make_wav(tmp_path),
+            url="https://api.openai.com/v1/audio/transcriptions",
+        )
+    assert (text, err) == ("こんにちは", None)
+    assert seen["url"] == "https://api.openai.com/v1/audio/transcriptions"
 
 
 async def test_api_error_returns_error(tmp_path):

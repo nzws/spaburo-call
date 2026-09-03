@@ -280,12 +280,12 @@ async def test_transcribe_failure_still_notifies(tmp_path):
         control,
         verdict=SpamVerdict(True, "voicemail", None),
         tmp_path=tmp_path,
-        transcriber=TranscribeSpy(result=(None, "Groq API error: 429")),
+        transcriber=TranscribeSpy(result=(None, "Transcription API error: 429")),
     )
     await session.run()
     extra = log.entries[-1]["extra"]
     assert extra["transcription"] is None
-    assert extra["transcription_error"] == "Groq API error: 429"
+    assert extra["transcription_error"] == "Transcription API error: 429"
 
 
 async def test_zero_length_recording_skips_transcribe_but_notifies(tmp_path):
@@ -300,7 +300,7 @@ async def test_zero_length_recording_skips_transcribe_but_notifies(tmp_path):
         transcriber=transcriber,
     )
     await session.run()
-    assert transcriber.calls == []  # Groqを呼ばない
+    assert transcriber.calls == []  # 文字起こしAPIを呼ばない
     extra = log.entries[-1]["extra"]
     assert extra["transcription"] is None
     assert extra["duration_sec"] == 0.0

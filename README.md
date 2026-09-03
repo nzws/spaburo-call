@@ -78,7 +78,8 @@ VOICEMAIL_MAX_DURATION_SEC=120
 VOICEMAIL_GREETING_WAV=
 REJECT_ANNOUNCE_WAV=
 RECORDINGS_DIR=./recordings
-GROQ_API_KEY=
+OPENAI_API_KEY=
+TRANSCRIBE_API_URL=
 TRANSCRIBE_MODEL=whisper-large-v3-turbo
 ```
 
@@ -87,7 +88,7 @@ TRANSCRIBE_MODEL=whisper-large-v3-turbo
 - 挨拶・拒否アナウンスの音声は `VOICEMAIL_GREETING_WAV` / `REJECT_ANNOUNCE_WAV` で差し替え可能です（8kHz mono 16bit PCMのWAV）。未設定時は同梱のデフォルト音声（`assets/`）を使用します。
 - 録音は `RECORDINGS_DIR`（コンテナ内は `RECORDINGS_DIR=./recordings` で `/app/recordings` を指す）に保存され、Docker Composeでは `./recordings:/app/recordings` としてホスト側にも公開されます（`compose.yml` 参照）。
 - 録音は `VOICEMAIL_MAX_DURATION_SEC` に達するか、相手が切断する、メディアが失われるまで継続します。
-- 録音完了後、`GROQ_API_KEY` を設定していればGroq APIへ録音ファイルを送信して文字起こしを行います。**録音音声が外部（Groq）に送信される**ため、取り扱いに注意してください。未設定の場合は文字起こしをスキップします（`transcription_error` にその旨が記録されます）。
+- 録音完了後、`OPENAI_API_KEY` を設定していればOpenAI互換の文字起こしAPIへ録音ファイルを送信して文字起こしを行います。エンドポイントは `TRANSCRIBE_API_URL` で指定でき、未設定時はGroq（`https://api.groq.com/openai/v1/audio/transcriptions`）を使用します。**録音音声が外部APIに送信される**ため、取り扱いに注意してください。`OPENAI_API_KEY` 未設定の場合は文字起こしをスキップします（`transcription_error` にその旨が記録されます）。
 
 ### MQTT（ログ送信）
 
@@ -130,7 +131,7 @@ MQTT_PASSWORD=pass  # オプション
 
 - `duration_sec`: 録音の長さ（秒）。0秒の場合もあります。
 - `recording_path`: 保存された録音ファイルのパス（コンテナ内パス）。
-- `transcription`: Groqによる文字起こし結果。取得できなかった場合は `null`。
-- `transcription_error`: 文字起こしに失敗・スキップした理由（`GROQ_API_KEY` 未設定、シャットダウン中断など）。成功時は `null`。
+- `transcription`: 文字起こし結果。取得できなかった場合は `null`。
+- `transcription_error`: 文字起こしに失敗・スキップした理由（`OPENAI_API_KEY` 未設定、シャットダウン中断など）。成功時は `null`。
 
 今後 `action` の種類が増える可能性があるため、**subscriber は未知のactionを無視するように実装してください**。

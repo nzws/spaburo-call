@@ -9,7 +9,7 @@ import pjsua2 as pj
 from call_session import CallerInfo, CallSession, SessionConfig, SessionDeps
 from media import PjCallControl, configure_media
 from utils.call_logger import CallLogger
-from utils.transcribe import transcribe
+from utils.transcribe import DEFAULT_TRANSCRIPTION_URL, transcribe
 from utils.webhook import check_spam
 
 
@@ -123,7 +123,8 @@ class SipBot:
         session_config: SessionConfig,
         webhook_url: Optional[str] = None,
         sip_auth_user: Optional[str] = None,
-        groq_api_key: Optional[str] = None,
+        transcribe_api_key: Optional[str] = None,
+        transcribe_api_url: str = DEFAULT_TRANSCRIPTION_URL,
         transcribe_model: str = "whisper-large-v3-turbo",
         mqtt_broker: Optional[str] = None,
         mqtt_port: int = 1883,
@@ -137,7 +138,8 @@ class SipBot:
         self.sip_password = sip_password
         self.webhook_url = webhook_url
         self.session_config = session_config
-        self.groq_api_key = groq_api_key
+        self.transcribe_api_key = transcribe_api_key
+        self.transcribe_api_url = transcribe_api_url
         self.transcribe_model = transcribe_model
         self.logger = logging.getLogger("SipBot")
         self.stopping = False
@@ -218,7 +220,13 @@ class SipBot:
             )
 
         async def do_transcribe(wav_path: str):
-            return await transcribe(self.http, self.groq_api_key, self.transcribe_model, wav_path)
+            return await transcribe(
+                self.http,
+                self.transcribe_api_key,
+                self.transcribe_model,
+                wav_path,
+                url=self.transcribe_api_url,
+            )
 
         deps = SessionDeps(check_spam=check, transcribe=do_transcribe, log=self.call_logger.log)
         session = CallSession(PjCallControl(call), caller, self.session_config, deps)

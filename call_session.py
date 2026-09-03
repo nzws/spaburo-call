@@ -272,7 +272,7 @@ class CallSession:
                 cancelled = True
                 text, error = None, "shutdown"
         else:
-            # 0秒録音: Groqには送らない
+            # 0秒録音: 文字起こしAPIには送らない
             text, error = None, None
 
         self._log(
