@@ -303,6 +303,51 @@ async def test_zero_length_recording_skips_transcribe_but_notifies(tmp_path):
     assert extra["duration_sec"] == 0.0
 
 
+async def test_race_prefers_terminated_on_same_tick_completion(tmp_path):
+    """_race: workの完了と終端が同一tickで揃った場合、TERMINATEDが優先される"""
+    control = FakeControl()
+    session, log, _ = make_session(control, tmp_path=tmp_path)
+    control.terminate()  # workを開始する前に既に終端済みにしておく
+
+    async def immediate():
+        return "work-result"
+
+    result = await session._race(immediate())
+    from call_session import TERMINATED
+
+    assert result is TERMINATED
+
+
+async def test_webhook_slower_than_answer_delay_triggers_immediate_voicemail(tmp_path):
+    """webhook判定がanswer_delayより長くかかった場合、残余0で即座に留守電応答する"""
+    control = FakeControl()
+    delay = 0.05
+
+    async def fake_check(caller):
+        await asyncio.sleep(delay * 3)  # answer_delay_secを大幅に超える
+        return SpamVerdict(False, "none", None)
+
+    log = LogSpy()
+    transcriber = TranscribeSpy()
+    config = SessionConfig(
+        auto_block_enabled=True,
+        voicemail_enabled=True,
+        answer_delay_sec=delay,
+        max_duration_sec=0.2,
+        greeting_wav="greeting.wav",
+        beep_wav="beep.wav",
+        reject_wav="reject.wav",
+        recordings_dir=str(tmp_path),
+    )
+    deps = SessionDeps(check_spam=fake_check, transcribe=transcriber, log=log)
+    session = CallSession(control, CALLER, config, deps)
+
+    await session.run()
+
+    assert "answer" in control.ops
+    assert log.actions() == ["received", "legitimate", "voicemail_recorded"]
+
+
 async def test_cancel_during_race_wait_does_not_leak_tasks(tmp_path):
     """_raceがasyncio.wait中に外部キャンセルされてもwork/termタスクがorphanしないこと"""
     control = FakeControl()
@@ -344,6 +389,29 @@ async def test_cancel_during_recording_finalizes_and_notifies(tmp_path):
     assert transcriber.calls == []
     extra = log.entries[-1]["extra"]
     assert extra["transcription_error"] == "shutdown"
+
+
+async def test_finalize_failure_still_notifies(tmp_path, monkeypatch):
+    """設計: finalize_recording/wav_duration_secが失敗してもvoicemail_recordedは送られる"""
+    control = FakeControl()
+    session, log, _ = make_session(
+        control, verdict=SpamVerdict(True, "voicemail", None), tmp_path=tmp_path
+    )
+
+    def broken_finalize(part_path):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("call_session.finalize_recording", broken_finalize)
+
+    await session.run()
+
+    assert log.actions() == ["received", "spam_detected", "voicemail_recorded"]
+    extra = log.entries[-1]["extra"]
+    assert extra["duration_sec"] == 0
+    assert extra["transcription"] is None
+    assert extra["transcription_error"] == "finalize failed: disk full"
+    # rename前(part)のパスが生き残っているはずなので、それが通知される
+    assert extra["recording_path"] == control.recording_path
 
 
 async def test_cancel_during_transcription_still_notifies(tmp_path):

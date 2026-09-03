@@ -12,6 +12,7 @@ from typing import Optional
 import pjsua2 as pj
 
 from call_session import CallOperationError
+from utils.recording import wav_duration_sec
 
 logger = logging.getLogger("Media")
 
@@ -112,7 +113,17 @@ class PjCallControl:
             raise CallOperationError(e.info()) from e
         self._players.append(player)
         try:
-            await done.wait()
+            duration = wav_duration_sec(path)
+        except Exception as e:
+            logger.warning(f"再生長の取得に失敗しました。タイムアウトを60秒にフォールバックします: {e}")
+            timeout = 60.0
+        else:
+            timeout = duration + 10.0
+        try:
+            try:
+                await asyncio.wait_for(done.wait(), timeout)
+            except asyncio.TimeoutError:
+                raise CallOperationError(f"再生がタイムアウトしました: {path}")
         finally:
             # キャンセル(タスク停止)時も送出は止める
             if not self.terminated:

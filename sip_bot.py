@@ -267,10 +267,16 @@ class SipBot:
                 t.cancel()
             if pending:
                 # キャンセル時もCallSessionのfinallyが録音確定・通知を行う
-                await asyncio.wait(pending, timeout=10)
+                _done2, still_pending = await asyncio.wait(pending, timeout=10)
+                if still_pending:
+                    self.logger.critical(
+                        f"シャットダウン: {len(still_pending)}件のセッションタスクが終了しませんでした"
+                    )
 
         # 3. MQTT flush（voicemail_recorded等の送信完了を待つ）
-        await asyncio.to_thread(self.call_logger.flush)
+        flushed = await asyncio.to_thread(self.call_logger.flush)
+        if not flushed:
+            self.logger.error("MQTTログのflushが完了しませんでした（通知が失われた可能性）")
         await self.http.aclose()
 
         # 4. Account shutdown

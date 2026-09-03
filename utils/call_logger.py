@@ -56,13 +56,25 @@ class CallLogger:
             self._threads.append(thread)
         thread.start()
 
-    def flush(self, timeout: float = 10.0) -> None:
-        """送信中のログスレッドの完了を待つ（シャットダウン時用）"""
+    def flush(self, timeout: float = 10.0) -> bool:
+        """送信中のログスレッドの完了を待つ（シャットダウン時用）
+
+        Returns:
+            全スレッドが完了していればTrue。タイムアウト後も生存しているスレッドが
+            あればFalse（通知が失われる可能性がある）。
+        """
         deadline = time.monotonic() + timeout
         with self._threads_lock:
             threads = list(self._threads)
         for t in threads:
             t.join(max(0.0, deadline - time.monotonic()))
+        alive = [t for t in threads if t.is_alive()]
+        if alive:
+            self.logger.error(
+                f"MQTT送信スレッド{len(alive)}件がflushタイムアウト後も未完了です（通知が失われる可能性）"
+            )
+            return False
+        return True
 
     def _send_log(
         self,

@@ -1,4 +1,5 @@
 import json
+import time
 from unittest.mock import MagicMock, patch
 
 from utils.call_logger import CallLogger
@@ -102,7 +103,44 @@ def test_flush_waits_for_threads():
     def go():
         for _ in range(5):
             logger.log("received", "03", None, "06")
-        logger.flush()
+        result = logger.flush()
+        assert result is True
         assert all(not t.is_alive() for t in logger._threads)
 
     run_with_mock_mqtt(go)
+
+
+def test_flush_returns_false_and_logs_error_when_thread_still_alive(caplog):
+    """publishが遅延して flush のタイムアウトを超えた場合、Falseを返しエラーログを出す"""
+    logger = make_logger()
+
+    published = []
+    with patch("utils.call_logger.mqtt.Client") as client_cls:
+        client = MagicMock()
+        client_cls.return_value = client
+
+        def connect_async(*args, **kwargs):
+            client.on_connect(client, None, None, 0)
+
+        client.connect_async.side_effect = connect_async
+
+        def publish(topic, payload, qos):
+            time.sleep(1.0)  # flushのtimeout(0.1s)より十分長く遅延させる
+            published.append((topic, payload, qos))
+            info = MagicMock()
+            info.rc = 0
+            info.is_published.return_value = True
+            return info
+
+        client.publish.side_effect = publish
+
+        logger.log("received", "03", None, "06")
+        with caplog.at_level("ERROR", logger="CallLogger"):
+            result = logger.flush(timeout=0.1)
+
+    assert result is False
+    assert any("flushタイムアウト後も未完了" in r.message for r in caplog.records)
+
+    # スレッドが後始末されるまで待ってから終了する（テスト間の汚染防止）
+    for t in list(logger._threads):
+        t.join(5.0)

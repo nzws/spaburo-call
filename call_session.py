@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Optional, Protocol
@@ -16,6 +17,28 @@ CONFIRM_TIMEOUT = 5.0
 
 # _raceの「通話が先に終端した」ことを表すsentinel
 TERMINATED = object()
+
+# wav_duration_secリトライの最大回数と間隔（録音停止直後のファイルクローズが非同期な場合に備える）
+_WAV_DURATION_RETRY_COUNT = 20
+_WAV_DURATION_RETRY_INTERVAL_SEC = 0.1
+
+
+async def _wav_duration_sec_with_retry(path: str) -> float:
+    """wav_duration_secをリトライ付きで実行する
+
+    stop_recording()直後はWAVファイルのクローズが非同期な場合があり、
+    直後の読み取りが失敗し得るため、一定回数リトライする。
+    """
+    last_error: Optional[Exception] = None
+    for attempt in range(_WAV_DURATION_RETRY_COUNT):
+        try:
+            return wav_duration_sec(path)
+        except Exception as e:
+            last_error = e
+            if attempt < _WAV_DURATION_RETRY_COUNT - 1:
+                await asyncio.sleep(_WAV_DURATION_RETRY_INTERVAL_SEC)
+    assert last_error is not None
+    raise last_error
 
 
 class CallOperationError(Exception):
@@ -204,9 +227,32 @@ class CallSession:
         self._safe_hangup()
 
         # ここから先はCallに依存しない後処理
-        final_path = finalize_recording(part_path)
-        duration = wav_duration_sec(final_path)
-        logger.info(f"録音を保存しました: {final_path} ({duration:.1f}秒)")
+        try:
+            final_path = finalize_recording(part_path)
+            duration = await _wav_duration_sec_with_retry(final_path)
+            logger.info(f"録音を保存しました: {final_path} ({duration:.1f}秒)")
+        except Exception as e:
+            # finalize/durationの失敗でvoicemail_recorded通知が消えないよう、
+            # 生存しているパス（rename済みならfinal, 未renameならpart）で通知だけは必ず送る
+            logger.error(f"録音の確定に失敗しました: {e}")
+            final_candidate = locals().get("final_path")
+            if final_candidate and os.path.exists(final_candidate):
+                survivor_path = final_candidate
+            else:
+                survivor_path = part_path
+            self._log(
+                "voicemail_recorded",
+                reason=reason,
+                extra={
+                    "duration_sec": 0,
+                    "recording_path": survivor_path,
+                    "transcription": None,
+                    "transcription_error": f"finalize failed: {e}",
+                },
+            )
+            if cancelled:
+                raise asyncio.CancelledError()
+            return
 
         if cancelled:
             text, error = None, "shutdown"
