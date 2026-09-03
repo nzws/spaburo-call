@@ -39,15 +39,17 @@ def generate_beep(path: Path, freq: int = 1000, duration: float = 0.5, rate: int
 def generate_speech(path: Path, text: str) -> None:
     """sayコマンドで日本語音声を生成し、8kHz mono 16bit PCMに変換する"""
     aiff = path.with_suffix(".aiff")
-    subprocess.run(["say", "-v", "Kyoko", "-o", str(aiff), text], check=True)
-    subprocess.run(
-        [
-            "afconvert", str(aiff), str(path),
-            "-f", "WAVE", "-d", "LEI16@8000", "-c", "1",
-        ],
-        check=True,
-    )
-    aiff.unlink()
+    try:
+        subprocess.run(["say", "-v", "Kyoko", "-o", str(aiff), text], check=True)
+        subprocess.run(
+            [
+                "afconvert", str(aiff), str(path),
+                "-f", "WAVE", "-d", "LEI16@8000", "-c", "1",
+            ],
+            check=True,
+        )
+    finally:
+        aiff.unlink(missing_ok=True)
     print(f"生成しました: {path}")
 
 
