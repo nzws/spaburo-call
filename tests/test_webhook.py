@@ -77,3 +77,8 @@ class TestCheckSpam:
         async with httpx.AsyncClient(transport=transport) as client:
             v = await check_spam(client, "http://wh/check", "03", "03", None)
         assert v == SpamVerdict(False, "none", None)
+
+    async def test_invalid_url_is_fail_open(self):
+        async with httpx.AsyncClient() as client:
+            v = await check_spam(client, "not a url", "03", "03", None)
+        assert v == SpamVerdict(False, "none", None)

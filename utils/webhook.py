@@ -74,6 +74,6 @@ async def check_spam(
         logger.info(f"Webhookリクエスト: {url} params={params}")
         response = await client.get(url, params=params, timeout=timeout)
         return parse_webhook_response(response.status_code, response.content)
-    except httpx.HTTPError as e:
+    except Exception as e:
         logger.warning(f"Webhookエラー: {type(e).__name__}: {e}")
         return SpamVerdict(False, "none", None)
