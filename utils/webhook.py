@@ -8,7 +8,7 @@ import httpx
 
 logger = logging.getLogger("Webhook")
 
-# 4xxレスポンスボディをJSONとして解釈する上限。
+# 400レスポンスボディをJSONとして解釈する上限。
 # webhookはユーザー自身の信頼済みエンドポイントなのでDoS対策ではなく、
 # 巨大レスポンスを誤って全量パースしないためのパース上限。
 MAX_BODY_BYTES = 64 * 1024
@@ -35,13 +35,13 @@ def parse_webhook_response(status_code: int, body: bytes) -> SpamVerdict:
     """Webhookレスポンスを判定に変換する純粋関数
 
     - 2xx: 非スパム
-    - 4xx: スパム。JSONボディのactionに従う（不正・欠落時はhangup=従来動作）
-    - その他(1xx/3xx/5xx): 非スパム扱い（フェイルオープン、従来動作）
+    - 400: スパム。JSONボディのactionに従う（不正・欠落時はhangup=従来動作）
+    - その他(1xx/3xx/400以外の4xx/5xx): 非スパム扱い（フェイルオープン）
     """
     if 200 <= status_code < 300:
         return SpamVerdict(False, "none", f"Webhook: {status_code}")
 
-    if 400 <= status_code < 500:
+    if status_code == 400:
         action = "hangup"
         reason = f"Webhook: {status_code}"
         try:
@@ -84,8 +84,11 @@ async def check_spam(
     params = {"from": from_number, "to": to_number}
 
     try:
-        logger.info(f"Webhookリクエスト: {url} params={params}")
-        response = await client.get(url, params=params, timeout=timeout)
+        # URL側に既存のクエリパラメータがあっても上書きせず & で結合する
+        # （client.get(url, params=...) は既存クエリを置き換えてしまう）
+        request_url = httpx.URL(url).copy_merge_params(params)
+        logger.info(f"Webhookリクエスト: {request_url}")
+        response = await client.get(request_url, timeout=timeout)
         return parse_webhook_response(response.status_code, response.content)
     except Exception as e:
         logger.warning(f"Webhookエラー: {type(e).__name__}: {e}")
