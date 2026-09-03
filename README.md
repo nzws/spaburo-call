@@ -114,12 +114,14 @@ MQTT_PASSWORD=pass  # オプション
 ```json
 {
   "timestamp": "2026-02-06T18:30:00.000Z",
-  "action": "received|spam_detected|legitimate|blocked|voicemail_recorded",
+  "action": "received|spam_detected|legitimate|blocked|voicemail_recorded|terminated",
   "from": "09012345678",
   "to": "0312345678",
   "reason": "Webhook: 400"
 }
 ```
+
+`action=terminated` は通話が終了した際に送信され、`reason` にSIPの終了理由テキスト（例: `Call completed elsewhere`）、`status_code` にSIPステータスコードが入ります。他の内線が応答した場合など、終了の経緯を区別する用途に使えます。
 
 `action=voicemail_recorded` は留守電の録音が完了した際に送信され、以下のフィールドが追加されます:
 

@@ -29,6 +29,7 @@ class MyCall(pj.Call):
         self.term = asyncio.Event()
         self.audio_media: Optional[pj.AudioMedia] = None
         self.last_status_code = 0
+        self.last_reason = ""
         self.on_terminated = None  # SipBotがレジストリ掃除用に設定する
         self.logger = logging.getLogger("MyCall")
 
@@ -38,8 +39,10 @@ class MyCall(pj.Call):
             self.confirmed.set()
         elif ci.state == pj.PJSIP_INV_STATE_DISCONNECTED:
             self.last_status_code = ci.lastStatusCode
+            self.last_reason = ci.lastReason
             self.logger.info(
-                f"通話が終了しました: {ci.remoteUri} (status={ci.lastStatusCode})"
+                f"通話が終了しました: {ci.remoteUri} "
+                f"(status={ci.lastStatusCode} reason={ci.lastReason})"
             )
             self.term.set()
             if self.on_terminated:
@@ -238,8 +241,23 @@ class SipBot:
             if entry_task.done() and entry_call.term.is_set():
                 self.sessions.pop(call_id, None)
 
-        # pjsua2コールバック内でのCall破棄を避けるため、削除はcall_soonで遅延させる
-        call.on_terminated = lambda _c: loop.call_soon(cleanup)
+        terminated_logged = False
+
+        def on_terminated(_c: MyCall) -> None:
+            nonlocal terminated_logged
+            if not terminated_logged:
+                terminated_logged = True
+                self.call_logger.log(
+                    "terminated",
+                    caller.from_number,
+                    caller.to_number,
+                    reason=call.last_reason,
+                    extra={"status_code": call.last_status_code},
+                )
+            # pjsua2コールバック内でのCall破棄を避けるため、削除はcall_soonで遅延させる
+            loop.call_soon(cleanup)
+
+        call.on_terminated = on_terminated
         task.add_done_callback(lambda _t: loop.call_soon(cleanup))
 
     # ---- 停止 ----
