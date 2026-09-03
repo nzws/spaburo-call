@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -21,6 +22,13 @@ class SpamVerdict:
     is_spam: bool
     action: str  # "none" | "hangup" | "announce" | "voicemail"
     reason: Optional[str]
+    # action=announce のときの再生メッセージ名（announce_<name>.wav を選択）。
+    # None なら既定の拒否アナウンスを使う
+    message: Optional[str] = None
+
+
+# announce の message 名として許可する形式（ファイル名に使うため厳格に）
+MESSAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def parse_webhook_response(status_code: int, body: bytes) -> SpamVerdict:
@@ -40,6 +48,7 @@ def parse_webhook_response(status_code: int, body: bytes) -> SpamVerdict:
             data = json.loads(body[:MAX_BODY_BYTES])
         except ValueError:
             data = None
+        message = None
         if isinstance(data, dict):
             raw_action = data.get("action")
             if isinstance(raw_action, str) and raw_action in VALID_ACTIONS:
@@ -47,7 +56,14 @@ def parse_webhook_response(status_code: int, body: bytes) -> SpamVerdict:
             raw_reason = data.get("reason")
             if isinstance(raw_reason, str):
                 reason = raw_reason
-        return SpamVerdict(True, action, reason)
+            raw_message = data.get("message")
+            if (
+                action == "announce"
+                and isinstance(raw_message, str)
+                and MESSAGE_NAME_RE.fullmatch(raw_message)
+            ):
+                message = raw_message
+        return SpamVerdict(True, action, reason, message)
 
     logger.warning(f"Webhook: 予期しないステータスコード {status_code}")
     return SpamVerdict(False, "none", None)

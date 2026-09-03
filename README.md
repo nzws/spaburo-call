@@ -63,8 +63,16 @@ GETリクエストで `?from={発信番号}&to={着信番号}&pai={P-Asserted-Id
 ```
 
 - `hangup`: 即応答→即切断（ワン切り、従来動作）
-- `announce`: 「お受けできません」を再生してから切断
+- `announce`: アナウンスを再生してから切断（既定は「お受けできません」）
 - `voicemail`: 強制留守電（挨拶→録音→文字起こし）
+
+`announce` は `message` でアナウンスの種類を選べます:
+
+```json
+{"action": "announce", "message": "sales"}
+```
+
+`assets/announce_<name>.wav` が起動時に自動検出され、`message` の名前で選択されます（同梱: `sales` = 「セールスや勧誘のお電話は固くお断りしております。この番号を発信リストから削除してください。」）。`message` 省略時・未知の名前のときは既定の拒否アナウンス（`REJECT_ANNOUNCE_WAV`）を再生します。独自のアナウンスは 8kHz mono 16bit PCM の WAV を `assets/announce_<name>.wav` として置くだけで追加できます。
 
 `AUTO_BLOCK_ENABLED=false` の場合はどのactionでも通話操作をせず、判定ログのみ記録します
 （`VOICEMAIL_ENABLED=true` なら通常留守電のタイマーは動作します）。

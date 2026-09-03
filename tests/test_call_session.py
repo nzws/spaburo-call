@@ -115,6 +115,7 @@ def make_session(
     max_duration=0.2,
     tmp_path=None,
     transcriber=None,
+    announce_wavs=None,
 ):
     log = LogSpy()
     transcriber = transcriber or TranscribeSpy()
@@ -131,6 +132,7 @@ def make_session(
         beep_wav="beep.wav",
         reject_wav="reject.wav",
         recordings_dir=str(tmp_path),
+        announce_wavs=announce_wavs or {},
     )
     deps = SessionDeps(check_spam=fake_check, transcribe=transcriber, log=log)
     return CallSession(control, CALLER, config, deps), log, transcriber
@@ -193,6 +195,31 @@ async def test_spam_announce_plays_reject_then_hangs_up(tmp_path):
     await session.run()
     assert control.ops == ["answer", "wait_media", "play:reject.wav", "hangup"]
     assert log.actions() == ["received", "spam_detected", "blocked"]
+
+
+async def test_spam_announce_with_message_plays_named_wav(tmp_path):
+    control = FakeControl()
+    session, log, _ = make_session(
+        control,
+        verdict=SpamVerdict(True, "announce", None, message="sales"),
+        announce_wavs={"sales": "announce_sales.wav"},
+        tmp_path=tmp_path,
+    )
+    await session.run()
+    assert control.ops == ["answer", "wait_media", "play:announce_sales.wav", "hangup"]
+    assert log.actions() == ["received", "spam_detected", "blocked"]
+
+
+async def test_spam_announce_with_unknown_message_falls_back_to_reject(tmp_path):
+    control = FakeControl()
+    session, log, _ = make_session(
+        control,
+        verdict=SpamVerdict(True, "announce", None, message="nonexistent"),
+        announce_wavs={"sales": "announce_sales.wav"},
+        tmp_path=tmp_path,
+    )
+    await session.run()
+    assert control.ops == ["answer", "wait_media", "play:reject.wav", "hangup"]
 
 
 async def test_forced_voicemail_records_and_notifies(tmp_path):

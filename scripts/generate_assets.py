@@ -21,6 +21,10 @@ GREETING_TEXT = (
     "発信音のあとに、お名前とご用件をお話しください。"
 )
 REJECT_TEXT = "この電話はお受けすることができません。"
+SALES_TEXT = (
+    "セールスや勧誘のお電話は固くお断りしております。"
+    "この番号を発信リストから削除してください。"
+)
 
 # 電話向けにやや遅めの話速（sayの既定はおよそ200前後）
 SPEECH_RATE = 160
@@ -76,3 +80,5 @@ if __name__ == "__main__":
     generate_beep(ASSETS / "beep.wav")
     generate_speech(ASSETS / "greeting.wav", GREETING_TEXT)
     generate_speech(ASSETS / "reject.wav", REJECT_TEXT)
+    # announce_*.wav は起動時に自動検出され、webhookの message 名で選択できる
+    generate_speech(ASSETS / "announce_sales.wav", SALES_TEXT)

@@ -36,6 +36,18 @@ def load_session_config() -> SessionConfig:
     for wav in [greeting, reject, beep]:
         validate_prompt_wav(wav)  # 不正なら起動エラー
 
+    # announceのメッセージバリエーションを自動検出
+    # (assets/announce_<name>.wav → webhookの {"action":"announce","message":"<name>"} で選択)
+    announce_wavs: dict[str, str] = {}
+    for wav_path in sorted(ASSETS_DIR.glob("announce_*.wav")):
+        validate_prompt_wav(str(wav_path))
+        name = wav_path.stem.removeprefix("announce_")
+        announce_wavs[name] = str(wav_path)
+    if announce_wavs:
+        logging.getLogger("main").info(
+            f"announceメッセージを検出しました: {', '.join(sorted(announce_wavs))}"
+        )
+
     return SessionConfig(
         auto_block_enabled=(os.getenv("AUTO_BLOCK_ENABLED") or "true").lower() == "true",
         voicemail_enabled=(os.getenv("VOICEMAIL_ENABLED") or "false").lower() == "true",
@@ -45,6 +57,7 @@ def load_session_config() -> SessionConfig:
         beep_wav=beep,
         reject_wav=reject,
         recordings_dir=os.getenv("RECORDINGS_DIR") or "./recordings",
+        announce_wavs=announce_wavs,
     )
 
 

@@ -36,6 +36,26 @@ class TestParseWebhookResponse:
     def test_4xx_with_non_dict_json_falls_back_to_hangup(self):
         assert parse_webhook_response(403, b'["voicemail"]').action == "hangup"
 
+    def test_announce_with_message(self):
+        v = parse_webhook_response(403, b'{"action": "announce", "message": "sales"}')
+        assert v.action == "announce"
+        assert v.message == "sales"
+
+    def test_announce_without_message_has_none(self):
+        v = parse_webhook_response(403, b'{"action": "announce"}')
+        assert v.message is None
+
+    def test_invalid_message_name_is_ignored(self):
+        for bad in ['"../etc"', '"日本語"', '42', 'null', '""']:
+            v = parse_webhook_response(
+                403, f'{{"action": "announce", "message": {bad}}}'.encode()
+            )
+            assert v.message is None, bad
+
+    def test_message_is_ignored_for_non_announce_actions(self):
+        v = parse_webhook_response(403, b'{"action": "voicemail", "message": "sales"}')
+        assert v.message is None
+
     def test_non_string_reason_is_ignored(self):
         v = parse_webhook_response(403, b'{"action": "hangup", "reason": 5}')
         assert v.reason == "Webhook: 403"

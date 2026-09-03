@@ -2,8 +2,8 @@ import asyncio
 import logging
 import os
 import time
-from dataclasses import dataclass
-from typing import Awaitable, Callable, Optional, Protocol
+from dataclasses import dataclass, field
+from typing import Awaitable, Callable, Mapping, Optional, Protocol
 
 from utils.recording import finalize_recording, new_recording_path, wav_duration_sec
 from utils.webhook import SpamVerdict
@@ -92,6 +92,8 @@ class SessionConfig:
     beep_wav: str
     reject_wav: str
     recordings_dir: str
+    # announceのmessage名 -> WAVパス（assets/announce_*.wavから自動検出される）
+    announce_wavs: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -167,10 +169,11 @@ class CallSession:
             self._safe_hangup()
             self._log("blocked", reason=verdict.reason)
         elif verdict.action == "announce":
+            announce_wav = self._select_announce_wav(verdict.message)
             if not await self._answer_with_media():
                 return
             try:
-                if await self._race(self.control.play_wav(self.config.reject_wav)) is TERMINATED:
+                if await self._race(self.control.play_wav(announce_wav)) is TERMINATED:
                     return
             except CallOperationError as e:
                 # 正常な切断競合だけでなくplay_wavタイムアウト(通話は生存)でも
@@ -183,6 +186,18 @@ class CallSession:
             self._log("blocked", reason=verdict.reason)
         elif verdict.action == "voicemail":
             await self._voicemail(reason=verdict.reason or "webhook: forced voicemail")
+
+    def _select_announce_wav(self, message: Optional[str]) -> str:
+        """announceで再生するWAVを選ぶ（message未指定・未知なら既定の拒否アナウンス）"""
+        if message is None:
+            return self.config.reject_wav
+        wav = self.config.announce_wavs.get(message)
+        if wav is None:
+            logger.warning(
+                f"未知のannounceメッセージ名です: {message}（既定のアナウンスを使用）"
+            )
+            return self.config.reject_wav
+        return wav
 
     # ---- 通常留守電フロー ----
 
