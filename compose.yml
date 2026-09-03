@@ -8,3 +8,5 @@ services:
       - .env
     restart: unless-stopped
     network_mode: host
+    volumes:
+      - ./recordings:/app/recordings
