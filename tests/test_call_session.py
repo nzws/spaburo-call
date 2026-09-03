@@ -303,6 +303,24 @@ async def test_zero_length_recording_skips_transcribe_but_notifies(tmp_path):
     assert extra["duration_sec"] == 0.0
 
 
+async def test_cancel_during_race_wait_does_not_leak_tasks(tmp_path):
+    """_raceがasyncio.wait中に外部キャンセルされてもwork/termタスクがorphanしないこと"""
+    control = FakeControl()
+    control.play_gate = asyncio.Event()  # play_wavをブロックしたままにする
+    session, log, _ = make_session(
+        control, verdict=SpamVerdict(True, "voicemail", None), tmp_path=tmp_path
+    )
+    tasks_before = asyncio.all_tasks()
+    task = asyncio.create_task(session.run())
+    await asyncio.sleep(0.05)  # play:greeting.wav の再生待ち(_race内)に入るまで待つ
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.sleep(0)  # キャンセルされたタスクの後始末を1tick進める
+    leaked = asyncio.all_tasks() - tasks_before
+    assert leaked == set()
+
+
 async def test_cancel_during_recording_finalizes_and_notifies(tmp_path):
     """設計§4.1: シャットダウン(キャンセル)時も録音を確定して通知する"""
     control = FakeControl()

@@ -266,10 +266,15 @@ class CallSession:
         """
         work = asyncio.ensure_future(coro)
         term = asyncio.ensure_future(self.control.wait_terminated(None))
-        done, pending = await asyncio.wait({work, term}, return_when=asyncio.FIRST_COMPLETED)
-        for p in pending:
-            p.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+        try:
+            done, pending = await asyncio.wait({work, term}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            # 外部からのキャンセル(CancelledError)がasyncio.waitの途中で飛んできた場合も、
+            # work/termタスクがorphanしないよう必ず両方を回収する。
+            for p in (work, term):
+                if not p.done():
+                    p.cancel()
+            await asyncio.gather(work, term, return_exceptions=True)
         if term in done:
             if work in done and not work.cancelled():
                 work.exception()  # 未取得例外の警告を防ぐ
