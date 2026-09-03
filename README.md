@@ -72,7 +72,7 @@ GETリクエストで `?from={発信番号}&to={着信番号}&pai={P-Asserted-Id
 {"action": "announce", "message": "sales"}
 ```
 
-`assets/announce_<name>.wav` が起動時に自動検出され、`message` の名前で選択されます（同梱: `sales` = 「セールスや勧誘のお電話は固くお断りしております。この番号を発信リストから削除してください。」）。`message` 省略時・未知の名前のときは既定の拒否アナウンス（`REJECT_ANNOUNCE_WAV`）を再生します。独自のアナウンスは 8kHz mono 16bit PCM の WAV を `assets/announce_<name>.wav` として置くだけで追加できます。
+`assets/announce_<name>.wav` が起動時に自動検出され、`message` の名前で選択されます（同梱: `sales` = 「リストからこの番号を削除してください。セールスや勧誘のお電話は固くお断りしております。」）。`message` 省略時・未知の名前のときは既定の拒否アナウンス（`REJECT_ANNOUNCE_WAV`）を再生します。独自のアナウンスは 8kHz mono 16bit PCM の WAV を `assets/announce_<name>.wav` として置くだけで追加できます。
 
 `AUTO_BLOCK_ENABLED=false` の場合はどのactionでも通話操作をせず、判定ログのみ記録します
 （`VOICEMAIL_ENABLED=true` なら通常留守電のタイマーは動作します）。
