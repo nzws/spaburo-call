@@ -16,6 +16,10 @@ from utils.recording import wav_duration_sec
 
 logger = logging.getLogger("Media")
 
+# WAV再生前に置く無音の間。応答直後に再生すると音声の頭が
+# 相手に届く前に流れて切れるため、少し待ってから再生する
+PLAY_WAV_LEAD_SILENCE_SEC = 1.0
+
 
 def configure_media(ep: pj.Endpoint) -> None:
     """null音声デバイスとコーデック優先順位(PCMU>PCMA、他無効)を設定する"""
@@ -104,6 +108,9 @@ class PjCallControl:
     async def play_wav(self, path: str) -> None:
         if self._call.audio_media is None:
             raise CallOperationError("audio media not ready")
+        await asyncio.sleep(PLAY_WAV_LEAD_SILENCE_SEC)
+        if self.terminated:
+            raise CallOperationError("call terminated before playback")
         done = asyncio.Event()
         player = _EofPlayer(asyncio.get_running_loop(), done)
         try:
