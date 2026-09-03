@@ -3,7 +3,7 @@
 > 固定電話スパムブロッカー＆ロガー
 
 PJSIP を用いて Python プログラムを固定電話の VoIP 子機として参加させます。
-着信ログを MQTT で配信するとともに、Webhook により動的なスパム判定を行い、スパム判定されれば子機側で（着信を）ワン切りすることで擬似的に着信拒否をすることができます。
+着信ログを MQTT で配信するとともに、Webhook により動的なスパム判定を行い、スパム判定されれば子機側で通知・切断することで擬似的に着信拒否をすることができます。
 
 Webhook はレスポンスコードに 2xx を返すことでスパムではない（無視）、4xx を返すことでスパムである（着拒）とシンプルに判定できるため、ユーザーが柔軟にスパム検出ロジックを組むことができます。
 
@@ -72,7 +72,8 @@ GETリクエストで `?from={発信番号}&to={着信番号}&pai={P-Asserted-Id
 {"action": "announce", "message": "sales"}
 ```
 
-`assets/announce_<name>.wav` が起動時に自動検出され、`message` の名前で選択されます（同梱: `sales` = 「リストからこの番号を削除してください。セールスや勧誘のお電話は固くお断りしております。」）。`message` 省略時・未知の名前のときは既定の拒否アナウンス（`REJECT_ANNOUNCE_WAV`）を再生します。独自のアナウンスは 8kHz mono 16bit PCM の WAV を `assets/announce_<name>.wav` として置くだけで追加できます。
+`assets/announce_<name>.wav` が起動時に自動検出され、`message` の名前で選択されます（同梱: `sales` = 「リストからこの番号を削除してください。セールスや勧誘のお電話は固くお断りしております。」）。
+`message` 省略時・未知の名前のときは既定の拒否アナウンス（`REJECT_ANNOUNCE_WAV`）を再生します。独自のアナウンスは 8kHz mono 16bit PCM の WAV を `assets/announce_<name>.wav` として置くだけで追加できます。
 
 `AUTO_BLOCK_ENABLED=false` の場合はどのactionでも通話操作をせず、判定ログのみ記録します
 （`VOICEMAIL_ENABLED=true` なら通常留守電のタイマーは動作します）。
