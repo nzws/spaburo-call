@@ -28,6 +28,8 @@ class CallLogger:
         self.password = password
         self.timeout = timeout
         self.logger = logging.getLogger("CallLogger")
+        self._threads: list[threading.Thread] = []
+        self._threads_lock = threading.Lock()
 
     def log(
         self,
@@ -36,6 +38,7 @@ class CallLogger:
         p_asserted_identity: Optional[str],
         to_number: str,
         reason: Optional[str] = None,
+        extra: Optional[dict] = None,
     ) -> None:
         """ログを送信（非同期）"""
         if not self.broker or not self.topic:
@@ -45,10 +48,21 @@ class CallLogger:
         # 非同期で送信（メインスレッドをブロックしない）
         thread = threading.Thread(
             target=self._send_log,
-            args=(action, from_number, p_asserted_identity, to_number, reason),
+            args=(action, from_number, p_asserted_identity, to_number, reason, extra),
             daemon=True,
         )
+        with self._threads_lock:
+            self._threads = [t for t in self._threads if t.is_alive()]
+            self._threads.append(thread)
         thread.start()
+
+    def flush(self, timeout: float = 10.0) -> None:
+        """送信中のログスレッドの完了を待つ（シャットダウン時用）"""
+        deadline = time.monotonic() + timeout
+        with self._threads_lock:
+            threads = list(self._threads)
+        for t in threads:
+            t.join(max(0.0, deadline - time.monotonic()))
 
     def _send_log(
         self,
@@ -57,6 +71,7 @@ class CallLogger:
         p_asserted_identity: Optional[str],
         to_number: str,
         reason: Optional[str],
+        extra: Optional[dict],
     ) -> None:
         """ログを送信（内部実装）"""
         log_data = {
@@ -69,6 +84,8 @@ class CallLogger:
 
         if reason:
             log_data["reason"] = reason
+        if extra:
+            log_data.update(extra)
 
         client = None
         connected = False
@@ -107,14 +124,19 @@ class CallLogger:
                 )
                 return
 
-            # メッセージ送信（QoS=0で確認応答を待たない）
-            payload = json.dumps(log_data)
-            result = client.publish(self.topic, payload, qos=0)
+            # メッセージ送信（QoS=1で確認応答を待つ）
+            payload = json.dumps(log_data, ensure_ascii=False)
+            result = client.publish(self.topic, payload, qos=1)
+            result.wait_for_publish(timeout=self.timeout)
 
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            # wait_for_publishはタイムアウト時も正常returnするためis_publishedで確認する
+            if result.rc == mqtt.MQTT_ERR_SUCCESS and result.is_published():
                 self.logger.info(f"ログを送信しました: action={action}, from={from_number}")
             else:
-                self.logger.error(f"MQTT送信に失敗しました: rc={result.rc}")
+                self.logger.error(
+                    f"MQTT送信が完了しませんでした: rc={result.rc}, "
+                    f"published={result.is_published()}"
+                )
 
         except socket.timeout:
             self.logger.error(f"MQTT接続がタイムアウトしました: {self.broker}:{self.port}")
