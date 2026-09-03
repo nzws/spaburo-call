@@ -73,7 +73,7 @@ class TestParseWebhookResponse:
 class TestCheckSpam:
     async def test_no_url_returns_not_spam(self):
         async with httpx.AsyncClient() as client:
-            v = await check_spam(client, None, "0312345678", "0398765432", None)
+            v = await check_spam(client, None, "0312345678", "0398765432")
         assert v == SpamVerdict(False, "none", None)
 
     async def test_sends_query_params_and_parses(self):
@@ -85,8 +85,8 @@ class TestCheckSpam:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            v = await check_spam(client, "http://wh/check", "0312345678", "0398765432", "+81312345678")
-        assert seen["params"] == {"from": "0312345678", "to": "0398765432", "pai": "+81312345678"}
+            v = await check_spam(client, "http://wh/check", "0312345678", "0398765432")
+        assert seen["params"] == {"from": "0312345678", "to": "0398765432"}
         assert v.action == "voicemail"
 
     async def test_connection_error_is_fail_open(self):
@@ -95,7 +95,7 @@ class TestCheckSpam:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            v = await check_spam(client, "http://wh/check", "03", "03", None)
+            v = await check_spam(client, "http://wh/check", "03", "03")
         assert v == SpamVerdict(False, "none", None)
 
     async def test_invalid_url_is_fail_open(self):

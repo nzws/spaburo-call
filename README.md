@@ -48,7 +48,7 @@ AUTO_BLOCK_ENABLED=true
 WEBHOOK_URL=http://your-server/api/check-spam
 ```
 
-GETリクエストで `?from={発信番号}&to={着信番号}&pai={P-Asserted-Identity}` を送信。
+GETリクエストで `?from={発信番号}&to={着信番号}` を送信。発信番号は P-Asserted-Identity を優先し、無ければ From ヘッダから取得します（どちらからも取得できない場合は `unknown`）。
 
 - 200番台: 非スパム → 着信を無視（親機等で受信できる状態にする）
 - 400番台: スパム → 着信をワン切りしてブロック
@@ -116,7 +116,6 @@ MQTT_PASSWORD=pass  # オプション
   "timestamp": "2026-02-06T18:30:00.000Z",
   "action": "received|spam_detected|legitimate|blocked|voicemail_recorded",
   "from": "09012345678",
-  "p_asserted_identity": null,
   "to": "0312345678",
   "reason": "Webhook: 403"
 }
@@ -129,7 +128,6 @@ MQTT_PASSWORD=pass  # オプション
   "timestamp": "2026-02-06T18:30:00.000Z",
   "action": "voicemail_recorded",
   "from": "09012345678",
-  "p_asserted_identity": null,
   "to": "0312345678",
   "duration_sec": 12.3,
   "recording_path": "/app/recordings/20260206-183000_a1b2c3.wav",

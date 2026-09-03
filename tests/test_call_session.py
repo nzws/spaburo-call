@@ -86,14 +86,14 @@ class FakeControl:
 class LogSpy:
     entries: list = field(default_factory=list)
 
-    def __call__(self, action, from_number, p_asserted_identity, to_number, reason=None, extra=None):
+    def __call__(self, action, from_number, to_number, reason=None, extra=None):
         self.entries.append({"action": action, "reason": reason, "extra": extra})
 
     def actions(self):
         return [e["action"] for e in self.entries]
 
 
-CALLER = CallerInfo(from_number="0312345678", p_asserted_identity=None, to_number="0398765432")
+CALLER = CallerInfo(from_number="0312345678", to_number="0398765432")
 
 
 class TranscribeSpy:

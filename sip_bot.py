@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import re
 from typing import Optional
 
 import httpx
@@ -9,22 +8,14 @@ import pjsua2 as pj
 from call_session import CallerInfo, CallSession, SessionConfig, SessionDeps
 from media import PjCallControl, configure_media
 from utils.call_logger import CallLogger
+from utils.sip_identity import (
+    UNKNOWN_NUMBER,
+    extract_number,
+    get_sip_headers,
+    resolve_caller_number,
+)
 from utils.transcribe import DEFAULT_TRANSCRIPTION_URL, transcribe
 from utils.webhook import check_spam
-
-
-def get_sip_header(whole_msg: str, name: str) -> Optional[str]:
-    """SIPメッセージからヘッダーを取得"""
-    # 1行ヘッダ前提（折り返しが来るなら拡張が必要）
-    m = re.search(rf"(?im)^{re.escape(name)}\s*:\s*(.+?)\r?$", whole_msg)
-    return m.group(1).strip() if m else None
-
-
-def extract_number(uri: str) -> str:
-    """SIP URIから電話番号を抽出"""
-    # 例: "<sip:+819012345678@domain>" -> "+819012345678"
-    match = re.search(r"sip:([^@>]+)@", uri)
-    return match.group(1) if match else "unknown"
 
 
 class MyCall(pj.Call):
@@ -93,17 +84,17 @@ class MyAccount(pj.Account):
             self.logger.info("シャットダウン中のため着信を無視します")
             return
 
-        pai = get_sip_header(prm.rdata.wholeMsg, "P-Asserted-Identity")
+        whole_msg = prm.rdata.wholeMsg
         call = MyCall(self, prm.callId)
         ci = call.getInfo()
         caller = CallerInfo(
-            from_number=extract_number(ci.remoteUri),
-            p_asserted_identity=pai,
-            to_number=extract_number(ci.localUri),
+            from_number=resolve_caller_number(whole_msg, ci.remoteUri),
+            to_number=extract_number(ci.localUri) or UNKNOWN_NUMBER,
         )
+        raw_pai = get_sip_headers(whole_msg, "P-Asserted-Identity")
         self.logger.info(
-            f"着信を受信しました: from={caller.from_number}, "
-            f"pai={caller.p_asserted_identity}, to={caller.to_number}"
+            f"着信を受信しました: from={caller.from_number}, to={caller.to_number}, "
+            f"raw_pai={raw_pai}"
         )
         self.bot.launch_session(call, caller)
 
@@ -216,7 +207,7 @@ class SipBot:
 
         async def check(c: CallerInfo):
             return await check_spam(
-                self.http, self.webhook_url, c.from_number, c.to_number, c.p_asserted_identity
+                self.http, self.webhook_url, c.from_number, c.to_number
             )
 
         async def do_transcribe(wav_path: str):

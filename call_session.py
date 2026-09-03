@@ -53,7 +53,6 @@ class CallerInfo:
     """発信者情報"""
 
     from_number: str
-    p_asserted_identity: Optional[str]
     to_number: str
 
 
@@ -359,7 +358,6 @@ class CallSession:
         self.deps.log(
             action,
             self.caller.from_number,
-            self.caller.p_asserted_identity,
             self.caller.to_number,
             reason=reason,
             extra=extra,

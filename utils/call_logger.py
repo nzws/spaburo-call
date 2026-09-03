@@ -35,7 +35,6 @@ class CallLogger:
         self,
         action: str,
         from_number: str,
-        p_asserted_identity: Optional[str],
         to_number: str,
         reason: Optional[str] = None,
         extra: Optional[dict] = None,
@@ -48,7 +47,7 @@ class CallLogger:
         # 非同期で送信（メインスレッドをブロックしない）
         thread = threading.Thread(
             target=self._send_log,
-            args=(action, from_number, p_asserted_identity, to_number, reason, extra),
+            args=(action, from_number, to_number, reason, extra),
             daemon=True,
         )
         with self._threads_lock:
@@ -80,7 +79,6 @@ class CallLogger:
         self,
         action: str,
         from_number: str,
-        p_asserted_identity: Optional[str],
         to_number: str,
         reason: Optional[str],
         extra: Optional[dict],
@@ -90,7 +88,6 @@ class CallLogger:
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "action": action,
             "from": from_number,
-            "p_asserted_identity": p_asserted_identity,
             "to": to_number,
         }
 

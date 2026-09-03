@@ -47,7 +47,6 @@ def test_log_publishes_qos1_with_extra():
         logger.log(
             action="voicemail_recorded",
             from_number="0312345678",
-            p_asserted_identity=None,
             to_number="0398765432",
             reason="webhook: forced voicemail",
             extra={"duration_sec": 42, "transcription": "もしもし"},
@@ -72,17 +71,17 @@ def test_log_without_extra_keeps_existing_shape():
     logger = make_logger()
 
     def go():
-        logger.log("received", "03", None, "06")
+        logger.log("received", "03", "06")
         logger.flush()
 
     published, _ = run_with_mock_mqtt(go)
     payload = published[0][1]
-    assert set(payload.keys()) == {"timestamp", "action", "from", "p_asserted_identity", "to"}
+    assert set(payload.keys()) == {"timestamp", "action", "from", "to"}
 
 
 def test_log_without_broker_is_noop():
     logger = CallLogger()
-    logger.log("received", "03", None, "06")  # 例外なし
+    logger.log("received", "03", "06")  # 例外なし
     logger.flush()
 
 
@@ -90,7 +89,7 @@ def test_publish_timeout_is_logged_not_raised():
     logger = make_logger()
 
     def go():
-        logger.log("received", "03", None, "06")
+        logger.log("received", "03", "06")
         logger.flush()
 
     # is_published()=False（タイムアウト相当）でも例外にならないこと
@@ -102,7 +101,7 @@ def test_flush_waits_for_threads():
 
     def go():
         for _ in range(5):
-            logger.log("received", "03", None, "06")
+            logger.log("received", "03", "06")
         result = logger.flush()
         assert result is True
         assert all(not t.is_alive() for t in logger._threads)
@@ -134,7 +133,7 @@ def test_flush_returns_false_and_logs_error_when_thread_still_alive(caplog):
 
         client.publish.side_effect = publish
 
-        logger.log("received", "03", None, "06")
+        logger.log("received", "03", "06")
         with caplog.at_level("ERROR", logger="CallLogger"):
             result = logger.flush(timeout=0.1)
 

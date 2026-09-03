@@ -74,7 +74,6 @@ async def check_spam(
     url: Optional[str],
     from_number: str,
     to_number: str,
-    p_asserted_identity: Optional[str],
     timeout: float = 5.0,
 ) -> SpamVerdict:
     """Webhookでスパム判定を実行（URL未設定・エラー時は非スパム扱い）"""
@@ -83,8 +82,6 @@ async def check_spam(
         return SpamVerdict(False, "none", None)
 
     params = {"from": from_number, "to": to_number}
-    if p_asserted_identity:
-        params["pai"] = p_asserted_identity
 
     try:
         logger.info(f"Webhookリクエスト: {url} params={params}")
