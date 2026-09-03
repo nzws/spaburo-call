@@ -25,6 +25,7 @@ class FakeControl:
         self.answer_raises = False
         self.record_seconds = 1.0  # 録音停止時に書き込むダミー音声の長さ
         self.play_gate: Optional[asyncio.Event] = None  # setすると再生がこれを待つ
+        self.play_raises = False  # Trueにするとplay_wavがCallOperationErrorを送出する
         self.recording_path: Optional[str] = None
 
     def terminate(self):
@@ -59,6 +60,8 @@ class FakeControl:
 
     async def play_wav(self, path):
         self.ops.append(f"play:{path}")
+        if self.play_raises:
+            raise CallOperationError("play_wav timed out (call still alive)")
         if self.play_gate is not None:
             await self.play_gate.wait()
 
@@ -443,3 +446,26 @@ async def test_cancel_during_transcription_still_notifies(tmp_path):
     extra = log.entries[-1]["extra"]
     assert extra["transcription"] is None
     assert extra["transcription_error"] == "shutdown"
+
+
+async def test_announce_play_failure_still_hangs_up(tmp_path):
+    """play_wavのタイムアウト(CallOperationError)でも応答済み通話を無音のまま残さずhangupする"""
+    control = FakeControl()
+    control.play_raises = True
+    session, log, _ = make_session(
+        control, verdict=SpamVerdict(True, "announce", None), tmp_path=tmp_path
+    )
+    await session.run()
+    assert control.ops == ["answer", "wait_media", "play:reject.wav", "hangup"]
+
+
+async def test_voicemail_greeting_play_failure_still_hangs_up(tmp_path):
+    """play_wavのタイムアウト(CallOperationError)でも応答済み通話を無音のまま残さずhangupする"""
+    control = FakeControl()
+    control.play_raises = True
+    session, log, _ = make_session(
+        control, verdict=SpamVerdict(True, "voicemail", None), tmp_path=tmp_path
+    )
+    await session.run()
+    assert control.ops == ["answer", "wait_media", "play:greeting.wav", "hangup"]
+    assert "voicemail_recorded" not in log.actions()

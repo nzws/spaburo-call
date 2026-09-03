@@ -271,7 +271,18 @@ class SipBot:
                 if still_pending:
                     self.logger.critical(
                         f"シャットダウン: {len(still_pending)}件のセッションタスクが終了しませんでした"
+                        "（再キャンセルして追加で待機します）"
                     )
+                    for t in still_pending:
+                        t.cancel()
+                    # キャンセルは協調的であり、2回のキャンセルを生き延びるタスクはバグである。
+                    # それでも無限待機はしない: シャットダウンを永久に止める方が害が大きいため。
+                    _done3, still_pending2 = await asyncio.wait(still_pending, timeout=5)
+                    if still_pending2:
+                        self.logger.critical(
+                            f"シャットダウン: {len(still_pending2)}件のセッションタスクが"
+                            "再キャンセル後も終了しませんでした。処理を続行します"
+                        )
 
         # 3. MQTT flush（voicemail_recorded等の送信完了を待つ）
         flushed = await asyncio.to_thread(self.call_logger.flush)

@@ -173,7 +173,11 @@ class CallSession:
                 if await self._race(self.control.play_wav(self.config.reject_wav)) is TERMINATED:
                     return
             except CallOperationError as e:
-                logger.info(f"アナウンス再生中に切断と競合しました（正常）: {e}")
+                # 正常な切断競合だけでなくplay_wavタイムアウト(通話は生存)でも
+                # このexceptに入り得るため、無音のまま残さないよう必ずhangupする
+                # (_safe_hangupは終端済みならno-opなので、正常競合ケースでも安全)
+                logger.info(f"アナウンス再生中にエラーが発生しました（切断競合の可能性）: {e}")
+                self._safe_hangup()
                 return
             self._safe_hangup()
             self._log("blocked", reason=verdict.reason)
@@ -202,7 +206,11 @@ class CallSession:
             if await self._race(self.control.play_wav(self.config.beep_wav)) is TERMINATED:
                 return
         except CallOperationError as e:
-            logger.info(f"挨拶再生中に切断と競合しました（正常）: {e}")
+            # 正常な切断競合だけでなくplay_wavタイムアウト(通話は生存)でも
+            # このexceptに入り得るため、無音のまま残さないよう必ずhangupする
+            # (_safe_hangupは終端済みならno-opなので、正常競合ケースでも安全)
+            logger.info(f"挨拶再生中にエラーが発生しました（切断競合の可能性）: {e}")
+            self._safe_hangup()
             return
 
         try:
