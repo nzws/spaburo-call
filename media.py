@@ -101,6 +101,8 @@ class PjCallControl:
         return self._call.media_active.is_set() and not self._call.term.is_set()
 
     async def play_wav(self, path: str) -> None:
+        if self._call.audio_media is None:
+            raise CallOperationError("audio media not ready")
         done = asyncio.Event()
         player = _EofPlayer(asyncio.get_running_loop(), done)
         try:
@@ -120,6 +122,8 @@ class PjCallControl:
                     logger.info(f"再生停止時に競合しました（正常）: {e.info()}")
 
     def start_recording(self, path: str) -> None:
+        if self._call.audio_media is None:
+            raise CallOperationError("audio media not ready")
         try:
             recorder = pj.AudioMediaRecorder()
             recorder.createRecorder(path)

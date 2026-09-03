@@ -49,3 +49,6 @@ Thumbs.db
 # Documentation
 README.md
 SPEC.md
+
+# 留守電の録音（個人情報を含む音声。COPY . . でイメージに焼き込まれないようにする）
+recordings/

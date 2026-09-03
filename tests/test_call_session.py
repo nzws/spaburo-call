@@ -344,3 +344,34 @@ async def test_cancel_during_recording_finalizes_and_notifies(tmp_path):
     assert transcriber.calls == []
     extra = log.entries[-1]["extra"]
     assert extra["transcription_error"] == "shutdown"
+
+
+async def test_cancel_during_transcription_still_notifies(tmp_path):
+    """文字起こし中にキャンセルされてもvoicemail_recordedはtranscription_error=shutdownで送られる"""
+    control = FakeControl()
+    entered_transcribe = asyncio.Event()
+
+    async def never_ending(path):
+        entered_transcribe.set()
+        await asyncio.Event().wait()  # 永遠に終わらないawaitable
+        return ("unreachable", None)  # pragma: no cover
+
+    session, log, _ = make_session(
+        control,
+        verdict=SpamVerdict(True, "voicemail", None),
+        max_duration=30.0,
+        tmp_path=tmp_path,
+        transcriber=never_ending,
+    )
+    task = asyncio.create_task(session.run())
+    while "record_start" not in control.ops:
+        await asyncio.sleep(0.01)
+    control.terminate()  # 録音を正常終了させ、文字起こしフェーズへ進める
+    await asyncio.wait_for(entered_transcribe.wait(), 1.0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert "voicemail_recorded" in log.actions()
+    extra = log.entries[-1]["extra"]
+    assert extra["transcription"] is None
+    assert extra["transcription_error"] == "shutdown"

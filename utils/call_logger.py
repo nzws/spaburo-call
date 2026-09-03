@@ -3,7 +3,7 @@ import logging
 import socket
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import paho.mqtt.client as mqtt
@@ -75,7 +75,7 @@ class CallLogger:
     ) -> None:
         """ログを送信（内部実装）"""
         log_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "action": action,
             "from": from_number,
             "p_asserted_identity": p_asserted_identity,

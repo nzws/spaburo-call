@@ -211,7 +211,12 @@ class CallSession:
         if cancelled:
             text, error = None, "shutdown"
         elif duration > 0:
-            text, error = await self.deps.transcribe(final_path)
+            try:
+                text, error = await self.deps.transcribe(final_path)
+            except asyncio.CancelledError:
+                # シャットダウン。voicemail_recordedは送ってから再送出する
+                cancelled = True
+                text, error = None, "shutdown"
         else:
             # 0秒録音: Groqには送らない
             text, error = None, None

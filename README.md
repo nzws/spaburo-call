@@ -122,7 +122,7 @@ MQTT_PASSWORD=pass  # オプション
   "p_asserted_identity": null,
   "to": "0312345678",
   "duration_sec": 12.3,
-  "recording_path": "/app/recordings/20260206-183000-09012345678.wav",
+  "recording_path": "/app/recordings/20260206-183000_a1b2c3.wav",
   "transcription": "お世話になっております。〜",
   "transcription_error": null
 }

@@ -5,6 +5,7 @@ import logging
 import os
 import signal
 from pathlib import Path
+from typing import Optional
 
 from call_session import SessionConfig
 from sip_bot import SipBot
@@ -88,9 +89,10 @@ async def amain() -> None:
         loop.add_signal_handler(sig, stop_requested.set)
 
     # libCreate〜libDestroyまで同一スレッド(このループのスレッド)で行う
-    bot.start()
-    pump = asyncio.create_task(pjsip_pump(bot, pump_stop))
+    pump: Optional[asyncio.Task] = None
     try:
+        bot.start()
+        pump = asyncio.create_task(pjsip_pump(bot, pump_stop))
         logger.info("ボットが正常に起動しました")
 
         # シグナル、またはポンプの異常終了を待つ
@@ -107,7 +109,7 @@ async def amain() -> None:
         await bot.shutdown()
     finally:
         pump_stop.set()
-        if not pump.done():
+        if pump is not None and not pump.done():
             await pump
         bot.destroy()
 
