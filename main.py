@@ -86,6 +86,7 @@ async def amain() -> None:
         sip_auth_user=os.getenv("SIP_AUTH_USER") or None,
         sip_password=os.getenv("SIP_PASSWORD") or "",
         webhook_url=os.getenv("WEBHOOK_URL") or None,
+        webhook_timeout=float(os.getenv("WEBHOOK_TIMEOUT_SEC") or "15"),
         session_config=load_session_config(),
         transcribe_api_key=os.getenv("OPENAI_API_KEY") or None,
         transcribe_api_url=os.getenv("TRANSCRIBE_API_URL") or DEFAULT_TRANSCRIPTION_URL,

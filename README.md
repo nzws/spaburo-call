@@ -46,7 +46,10 @@ AUTO_BLOCK_ENABLED=true
 
 ```env
 WEBHOOK_URL=http://your-server/api/check-spam
+WEBHOOK_TIMEOUT_SEC=15
 ```
+
+`WEBHOOK_TIMEOUT_SEC` はレスポンス待ちの上限（秒、既定 15）。Webhook 側が外部サービスを照会する場合、その所要時間より短いとタイムアウトして非スパム扱いになります。
 
 GETリクエストで `?from={発信番号}&to={着信番号}` を送信。発信番号は P-Asserted-Identity を優先し、無ければ From ヘッダから取得します（どちらからも取得できない場合は `unknown`）。
 

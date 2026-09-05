@@ -116,6 +116,7 @@ class SipBot:
         sip_password: str,
         session_config: SessionConfig,
         webhook_url: Optional[str] = None,
+        webhook_timeout: float = 15.0,
         sip_auth_user: Optional[str] = None,
         transcribe_api_key: Optional[str] = None,
         transcribe_api_url: str = DEFAULT_TRANSCRIPTION_URL,
@@ -131,6 +132,7 @@ class SipBot:
         self.sip_auth_user = sip_auth_user or sip_user
         self.sip_password = sip_password
         self.webhook_url = webhook_url
+        self.webhook_timeout = webhook_timeout
         self.session_config = session_config
         self.transcribe_api_key = transcribe_api_key
         self.transcribe_api_url = transcribe_api_url
@@ -210,7 +212,11 @@ class SipBot:
 
         async def check(c: CallerInfo):
             return await check_spam(
-                self.http, self.webhook_url, c.from_number, c.to_number
+                self.http,
+                self.webhook_url,
+                c.from_number,
+                c.to_number,
+                timeout=self.webhook_timeout,
             )
 
         async def do_transcribe(wav_path: str):

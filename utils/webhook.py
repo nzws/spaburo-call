@@ -74,7 +74,7 @@ async def check_spam(
     url: Optional[str],
     from_number: str,
     to_number: str,
-    timeout: float = 5.0,
+    timeout: float = 15.0,
 ) -> SpamVerdict:
     """Webhookでスパム判定を実行（URL未設定・エラー時は非スパム扱い）"""
     if not url:

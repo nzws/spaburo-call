@@ -106,6 +106,18 @@ class TestCheckSpam:
             "to": "0398765432",
         }
 
+    async def test_timeout_is_passed_to_the_request(self):
+        seen = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["timeout"] = request.extensions["timeout"]
+            return httpx.Response(200)
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as client:
+            await check_spam(client, "http://wh/check", "03", "03", timeout=12.5)
+        assert set(seen["timeout"].values()) == {12.5}
+
     async def test_connection_error_is_fail_open(self):
         def handler(request):
             raise httpx.ConnectError("boom")
