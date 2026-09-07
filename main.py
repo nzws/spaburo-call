@@ -99,6 +99,7 @@ async def amain() -> None:
         rtp_public_address=os.getenv("RTP_PUBLIC_ADDRESS") or None,
         rtp_port=int(os.getenv("RTP_PORT") or "4000"),
         rtp_port_range=int(os.getenv("RTP_PORT_RANGE") or "20"),
+        rtp_disable_vad=(os.getenv("RTP_DISABLE_VAD") or "false").lower() == "true",
     )
 
     stop_requested = asyncio.Event()

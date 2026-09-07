@@ -129,6 +129,7 @@ class SipBot:
         rtp_public_address: Optional[str] = None,
         rtp_port: int = 4000,
         rtp_port_range: int = 20,
+        rtp_disable_vad: bool = False,
     ):
         self.sip_domain = sip_domain
         self.sip_user = sip_user
@@ -139,6 +140,7 @@ class SipBot:
         self.rtp_public_address = rtp_public_address
         self.rtp_port = rtp_port
         self.rtp_port_range = rtp_port_range
+        self.rtp_disable_vad = rtp_disable_vad
         self.session_config = session_config
         self.transcribe_api_key = transcribe_api_key
         self.transcribe_api_url = transcribe_api_url
@@ -174,6 +176,9 @@ class SipBot:
         ep_cfg.medConfig.clockRate = 8000
         ep_cfg.medConfig.sndClockRate = 8000
         ep_cfg.medConfig.channelCount = 1
+        # VAD有効時は無音区間でRTP送出が止まる。外線側ゲートウェイが連続ストリームを
+        # 前提にしている場合の切り分け用に無効化できるようにする
+        ep_cfg.medConfig.noVad = self.rtp_disable_vad
         debug_enabled = logging.getLogger().isEnabledFor(logging.DEBUG)
         pj_log_level = 5 if debug_enabled else 3
         ep_cfg.logConfig.level = pj_log_level
