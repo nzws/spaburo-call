@@ -47,6 +47,23 @@ SIP_AUTH_USER=0004
 SIP_PASSWORD=your_password
 ```
 
+### ルーター配下から HGW に参加する場合（RTP）
+
+ボットを HGW と別セグメント（別ルーターの LAN 側）に置くと、SIP は登録できて着信も受けられるのに、外線通話だけ双方向とも無音になります。
+SIP は `rport` / `received` による NAT 越えの仕組みで通りますが、RTP は SDP にボットの素の IP が載るため、HGW からは到達できず、HGW へ届く RTP も送信元が SDP と食い違って捨てられるためです。
+内線同士の通話は相手が送信元にラッチする（symmetric RTP）ため症状が出ません。
+
+対処として、SDP に載せる音声用アドレスをルーターの HGW 側アドレスにし、RTP のポート範囲をルーターで固定転送します。
+
+```env
+RTP_PUBLIC_ADDRESS=192.168.2.2   # ルーターの HGW 側（WAN 側）アドレス
+RTP_PORT=4000
+RTP_PORT_RANGE=20                # UDP 4000-4020 を使う（1通話あたり2ポート）
+```
+
+ルーター側で UDP `RTP_PORT`〜`RTP_PORT+RTP_PORT_RANGE` をボットのホストへポートフォワードしてください。
+同一セグメントに置ける場合は `RTP_PUBLIC_ADDRESS` を空のままにします。
+
 ### Webhook（スパム判定）
 
 ```env

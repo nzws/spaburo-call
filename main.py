@@ -96,6 +96,9 @@ async def amain() -> None:
         mqtt_topic=os.getenv("MQTT_TOPIC") or None,
         mqtt_username=os.getenv("MQTT_USERNAME") or None,
         mqtt_password=os.getenv("MQTT_PASSWORD") or None,
+        rtp_public_address=os.getenv("RTP_PUBLIC_ADDRESS") or None,
+        rtp_port=int(os.getenv("RTP_PORT") or "4000"),
+        rtp_port_range=int(os.getenv("RTP_PORT_RANGE") or "20"),
     )
 
     stop_requested = asyncio.Event()

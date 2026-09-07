@@ -126,6 +126,9 @@ class SipBot:
         mqtt_topic: Optional[str] = None,
         mqtt_username: Optional[str] = None,
         mqtt_password: Optional[str] = None,
+        rtp_public_address: Optional[str] = None,
+        rtp_port: int = 4000,
+        rtp_port_range: int = 20,
     ):
         self.sip_domain = sip_domain
         self.sip_user = sip_user
@@ -133,6 +136,9 @@ class SipBot:
         self.sip_password = sip_password
         self.webhook_url = webhook_url
         self.webhook_timeout = webhook_timeout
+        self.rtp_public_address = rtp_public_address
+        self.rtp_port = rtp_port
+        self.rtp_port_range = rtp_port_range
         self.session_config = session_config
         self.transcribe_api_key = transcribe_api_key
         self.transcribe_api_url = transcribe_api_url
@@ -199,10 +205,23 @@ class SipBot:
         cred.data = self.sip_password
         acc_cfg.sipConfig.authCreds.append(cred)
 
+        # RTPは SIP と違い rport/received による NAT 越えの仕組みが無く、
+        # SDP にはソケットの素の IP が載る。ルーター配下から HGW に参加する場合は
+        # NAT 外側のアドレスを申告し、同じポート範囲をルーターで転送する必要がある。
+        rtp_cfg = acc_cfg.mediaConfig.transportConfig
+        rtp_cfg.port = self.rtp_port
+        rtp_cfg.portRange = self.rtp_port_range
+        if self.rtp_public_address:
+            rtp_cfg.publicAddress = self.rtp_public_address
+
         self.account = MyAccount(self)
         self.account.create(acc_cfg)
         self.logger.info(
             f"SIP登録要求を送信しました: {acc_cfg.idUri} -> {acc_cfg.regConfig.registrarUri}"
+        )
+        self.logger.info(
+            f"RTPポート範囲: UDP {self.rtp_port}-{self.rtp_port + self.rtp_port_range}"
+            + (f", SDP公開アドレス: {self.rtp_public_address}" if self.rtp_public_address else "")
         )
 
     # ---- セッション管理 ----
